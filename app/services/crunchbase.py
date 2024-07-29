@@ -1,54 +1,78 @@
 import requests
 import os
-from openai import OpenAI
+from urllib.parse import urlparse
+import logging
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+logger = logging.getLogger(__name__)
+
 CRUNCHBASE_API_KEY = os.getenv("CRUNCHBASE_API_KEY")
+CRUNCHBASE_API_URL = "https://api.crunchbase.com/api/v4/entities/organizations"
 
-def get_crunchbase_data(company_url):
-    # Extract company name or domain from URL
-    company_name = company_url.split('://')[1].split('.')[0]
+def extract_company_identifier(input_string):
+    # If it's a URL, extract the domain
+    if input_string.startswith(('http://', 'https://')):
+        parsed_url = urlparse(input_string)
+        return parsed_url.netloc.split('.')[-2]
+    # Otherwise, use the input as is (assuming it's already a company identifier)
+    return input_string.lower().replace(' ', '-')
+
+def get_crunchbase_data(company_input):
+    logger.info(f"Fetching Crunchbase data for: {company_input}")
+    company_identifier = extract_company_identifier(company_input)
     
-    # Crunchbase API endpoint
-    api_url = f"https://api.crunchbase.com/v3.1/organizations/{company_name}"
+    # API endpoint
+    api_url = f"{CRUNCHBASE_API_URL}/{company_identifier}"
     
     # Parameters for the API request
     params = {
+        "card_ids": "founders,raised_funding_rounds",
+        "field_ids": "categories,short_description,rank_org_company,founded_on,website,facebook,created_at",
         "user_key": CRUNCHBASE_API_KEY
     }
     
     try:
+        logger.info(f"Sending request to Crunchbase API for company: {company_identifier}")
         response = requests.get(api_url, params=params)
+        response.raise_for_status()  # Raise an exception for bad status codes
         data = response.json()
         
-        if 'data' in data:
-            company_info = data['data']
-            return {
-                "name": company_info.get('properties', {}).get('name', 'N/A'),
-                "description": company_info.get('properties', {}).get('description', 'N/A'),
-                "founded_on": company_info.get('properties', {}).get('founded_on', 'N/A'),
-                "website": company_info.get('properties', {}).get('homepage_url', 'N/A'),
-                "location": company_info.get('properties', {}).get('city_name', 'N/A') + ", " + 
-                            company_info.get('properties', {}).get('country_code', 'N/A'),
+        if 'properties' in data:
+            properties = data['properties']
+            cards = data.get('cards', {})
+            
+            founders = [f"{founder['properties']['first_name']} {founder['properties']['last_name']}" 
+                        for founder in cards.get('founders', {}).get('items', [])]
+            
+            funding_rounds = [
+                {
+                    "type": round['properties'].get('funding_type', 'N/A'),
+                    "money_raised": round['properties'].get('money_raised', 'N/A'),
+                    "announced_on": round['properties'].get('announced_on', 'N/A')
+                }
+                for round in cards.get('raised_funding_rounds', {}).get('items', [])
+            ]
+            
+            company_info = {
+                "name": properties.get('name', 'N/A'),
+                "website": properties.get('website', {}).get('value', 'N/A'),
+                "facebook": properties.get('facebook', {}).get('value', 'N/A'),
+                "categories": [cat['value'] for cat in properties.get('categories', [])],
+                "short_description": properties.get('short_description', 'N/A'),
+                "founded_on": properties.get('founded_on', 'N/A'),
+                "rank_org_company": properties.get('rank_org_company', 'N/A'),
+                "created_at": properties.get('created_at', 'N/A'),
+                "founders": founders,
+                "funding_rounds": funding_rounds
             }
+            
+            logger.info(f"Successfully retrieved data for company: {company_identifier}")
+            return company_info
         else:
-            return {"error": "Company not found or API error"}
+            logger.warning(f"No data found for company: {company_identifier}")
+            return {"error": f"No data found for company: {company_identifier}"}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching data from Crunchbase API: {str(e)}")
+        return {"error": f"Error fetching data from Crunchbase API: {str(e)}"}
     except Exception as e:
-        return {"error": str(e)}
-
-def generate_summary(content, url, index, total):
-    try:
-        print(f"[{index+1}/{total}] Sending content to OpenAI for analysis: {url}")
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that summarizes website content."},
-                {"role": "user", "content": f"Based on the following content from a website, provide a brief summary (2-3 sentences) about what the company does:\n\n{content}"}
-            ],
-            model="gpt-3.5-turbo",
-        )
-        summary = chat_completion.choices[0].message.content.strip()
-        print(f"[{index+1}/{total}] Received analysis from OpenAI: {url}")
-        return summary
-    except Exception as e:
-        print(f"[{index+1}/{total}] Error generating summary for {url}: {str(e)}")
-        return f"Error generating summary: {str(e)}"
+        logger.error(f"Unexpected error in get_crunchbase_data: {str(e)}")
+        return {"error": f"Unexpected error: {str(e)}"}

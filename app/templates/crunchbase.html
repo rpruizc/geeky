@@ -11,13 +11,12 @@
             padding: 20px;
             background-color: #f0f0f0;
         }
-        h1 {
+        h1, h2, h3 {
             color: #333;
-            text-align: center;
         }
-        form {
-            max-width: 500px;
-            margin: 0 auto;
+        form, #companyInfo {
+            max-width: 800px;
+            margin: 20px auto;
             background-color: white;
             padding: 20px;
             border-radius: 5px;
@@ -41,26 +40,37 @@
         input[type="submit"]:hover {
             background-color: #45a049;
         }
-        #companyInfo {
-            max-width: 500px;
-            margin: 20px auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
         .info-item {
             margin-bottom: 10px;
         }
         .info-item strong {
             font-weight: bold;
         }
+        .flash-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #ffcccc;
+            border: 1px solid #ff0000;
+        }
+        ul {
+            padding-left: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Crunchbase Company Data</h1>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash-message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
     <form method="POST">
-        <input type="text" name="company_url" placeholder="Enter company URL (e.g., https://www.example.com)" required>
+        <input type="text" name="company_url" placeholder="Enter company URL, name, or identifier (e.g., https://www.tesla.com, Tesla, or tesla-motors)" required>
         <input type="submit" value="Get Company Info">
     </form>
     
@@ -69,11 +79,31 @@
         {% if company_data.error %}
             <p>Error: {{ company_data.error }}</p>
         {% else %}
-            <div class="info-item"><strong>Name:</strong> {{ company_data.name }}</div>
-            <div class="info-item"><strong>Description:</strong> {{ company_data.description }}</div>
-            <div class="info-item"><strong>Founded:</strong> {{ company_data.founded_on }}</div>
+            <h2>{{ company_data.name }}</h2>
             <div class="info-item"><strong>Website:</strong> <a href="{{ company_data.website }}" target="_blank">{{ company_data.website }}</a></div>
-            <div class="info-item"><strong>Location:</strong> {{ company_data.location }}</div>
+            <div class="info-item"><strong>Facebook:</strong> <a href="{{ company_data.facebook }}" target="_blank">{{ company_data.facebook }}</a></div>
+            <div class="info-item"><strong>Categories:</strong> {{ company_data.categories|join(', ') }}</div>
+            <div class="info-item"><strong>Description:</strong> {{ company_data.short_description }}</div>
+            <div class="info-item"><strong>Founded:</strong> {{ company_data.founded_on }}</div>
+            <div class="info-item"><strong>Crunchbase Rank:</strong> {{ company_data.rank_org_company }}</div>
+            <div class="info-item"><strong>Created at:</strong> {{ company_data.created_at }}</div>
+            
+            <h3>Founders:</h3>
+            <ul>
+            {% for founder in company_data.founders %}
+                <li>{{ founder }}</li>
+            {% endfor %}
+            </ul>
+            
+            <h3>Funding Rounds:</h3>
+            <ul>
+            {% for round in company_data.funding_rounds %}
+                <li>
+                    <strong>{{ round.type }}</strong>: 
+                    {{ round.money_raised }} on {{ round.announced_on }}
+                </li>
+            {% endfor %}
+            </ul>
         {% endif %}
     </div>
     {% endif %}

@@ -1,5 +1,8 @@
 import sqlite3
 from flask import current_app, g
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_db():
     if 'db' not in g:
@@ -20,6 +23,7 @@ def init_db():
     db.execute('''CREATE TABLE IF NOT EXISTS websites
                   (url TEXT PRIMARY KEY, title TEXT, content TEXT, ai_summary TEXT)''')
     db.commit()
+    logger.info("Database initialized with websites table.")
 
 class Website:
     @staticmethod
@@ -30,8 +34,11 @@ class Website:
             (url, title, content, ai_summary)
         )
         db.commit()
+        logger.info(f"Website data inserted/updated for URL: {url}")
 
     @staticmethod
     def get_all():
         db = get_db()
-        return db.execute('SELECT url, title, ai_summary FROM websites').fetchall()
+        websites = db.execute('SELECT url, title, ai_summary FROM websites').fetchall()
+        logger.info(f"Retrieved {len(websites)} websites from database.")
+        return websites
