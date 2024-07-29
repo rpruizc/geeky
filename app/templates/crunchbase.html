@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crunchbase Company Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        form {
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        #companyInfo {
+            max-width: 500px;
+            margin: 20px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-item {
+            margin-bottom: 10px;
+        }
+        .info-item strong {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Crunchbase Company Data</h1>
+    <form method="POST">
+        <input type="text" name="company_url" placeholder="Enter company URL (e.g., https://www.example.com)" required>
+        <input type="submit" value="Get Company Info">
+    </form>
+    
+    {% if company_data %}
+    <div id="companyInfo">
+        {% if company_data.error %}
+            <p>Error: {{ company_data.error }}</p>
+        {% else %}
+            <div class="info-item"><strong>Name:</strong> {{ company_data.name }}</div>
+            <div class="info-item"><strong>Description:</strong> {{ company_data.description }}</div>
+            <div class="info-item"><strong>Founded:</strong> {{ company_data.founded_on }}</div>
+            <div class="info-item"><strong>Website:</strong> <a href="{{ company_data.website }}" target="_blank">{{ company_data.website }}</a></div>
+            <div class="info-item"><strong>Location:</strong> {{ company_data.location }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+</body>
+</html>
